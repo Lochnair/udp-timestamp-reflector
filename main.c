@@ -130,6 +130,13 @@ void worker(int sock_fd)
 			printf("something wrong: %d\n", t);
 			continue;
 		}
+
+		uint32_t originateTs =  (hdr.originateTime % 86400 * 1000) + (hdr.originateTimeNs / 1000000);
+		uint32_t receivedTs =  (hdr.receiveTime % 86400 * 1000) + (hdr.receiveTimeNs / 1000000);
+		uint32_t transmitTs =  (hdr.transmitTime % 86400 * 1000) + (hdr.transmitTimeNs / 1000000);
+
+		printf("Sender IP %s  |  Originate time: %lu  |  Receive time: %lu  |  Transmit time: %lu\n",
+				originateTs, receivedTs, transmitTs);
 	}
 }
 
