@@ -20,15 +20,27 @@ struct icmp_timestamp_hdr {
     uint16_t    identifier;
     uint16_t    sequence;
     uint32_t    originateTime;
+	uint32_t    originateTimeNs;
     uint32_t    receiveTime;
+	uint32_t    receiveTimeNs;
     uint32_t    transmitTime;
+	uint32_t    transmitTimeNs;
 };
+
+struct timespec get_time()
+{
+	struct timespec time;
+	clock_gettime(CLOCK_REALTIME, &time);
+	return time;
+}
 
 unsigned long get_time_since_midnight_ms()
 {
     struct timespec time;
     clock_gettime(CLOCK_REALTIME, &time);
-    return (time.tv_sec % 86400 * 1000) + (time.tv_nsec / 1000000);
+
+	return (time.tv_sec % 86400 * 1000000) + time.tv_nsec;
+    //return (time.tv_sec % 86400 * 1000) + (time.tv_nsec / 1000000);
 }
 
 unsigned short calculateChecksum(void *b, int len)
@@ -84,11 +96,10 @@ void worker(int sock_fd)
 		struct sockaddr_in6 remote_addr;
 		socklen_t addr_len = sizeof(remote_addr);
 		int recv = recvfrom(sock_fd, &hdr, sizeof(hdr), 0, (struct sockaddr*) &remote_addr, &addr_len);
+		struct timespec receivedTime = get_time();
 
 		if (recv < 0)
 			continue;
-
-		int receivedTime = htonl(get_time_since_midnight_ms());
 
 		if (hdr.type != ICMP_TIMESTAMP)
 		{
@@ -104,9 +115,13 @@ void worker(int sock_fd)
 		}
 
 		hdr.type = ICMP_TIMESTAMPREPLY;
-		hdr.receiveTime = receivedTime;
-		hdr.transmitTime = htonl(get_time_since_midnight_ms());
 
+		hdr.receiveTime = htonl(receivedTime.tv_sec);
+		hdr.receiveTimeNs = htonl(receivedTime.tv_nsec);
+
+		struct timespec transmitTime = get_time();
+		hdr.transmitTime = htonl(transmitTime.tv_sec);
+		hdr.transmitTimeNs = htonl(transmitTime.tv_nsec);
 		hdr.checksum = calculateChecksum(&hdr, sizeof(hdr));
 
 		int t;
