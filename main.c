@@ -9,24 +9,20 @@
 #include <arpa/inet.h>
 #include <sys/time.h>
 #include <time.h>
+#include <netinet/ip_icmp.h>
 
-#define LISTEN_THREADS	4
 #define SERVER_PORT		62222
 
-typedef struct {
-    uint8_t type;
-    uint16_t checksum;
-    uint16_t identifier;
-    uint16_t sequence;
-    uint32_t originalTime;
-    uint32_t receiveTime;
-    uint32_t transmitTime;
-} udpTsHdr;
-
-typedef struct {
-	struct sockaddr_in6 * server_addr;
-	int threadId;
-} worker_data;
+struct icmp_timestamp_hdr {
+    uint8_t     type;
+    uint8_t     code;
+    uint16_t    checksum;
+    uint16_t    identifier;
+    uint16_t    sequence;
+    uint32_t    originateTime;
+    uint32_t    receiveTime;
+    uint32_t    transmitTime;
+};
 
 unsigned long get_time_since_midnight_ms()
 {
@@ -64,18 +60,10 @@ int create_listen_addr(struct sockaddr_in6 * server_addr)
 int create_socket(struct sockaddr_in6 * server_addr)
 {
 	int socket_fd = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
-	int optval = 1;
 
 	if (socket_fd < 0)
 	{
 		perror("couldn't create socket");
-		return -1;
-	}
-
-
-	if (setsockopt(socket_fd, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval)) > 0)
-	{
-		perror("couldn't set reuseport");
 		return -1;
 	}
 
@@ -88,27 +76,22 @@ int create_socket(struct sockaddr_in6 * server_addr)
 	return socket_fd;
 }
 
-void * worker(void * data)
+void worker(int sock_fd)
 {
-	worker_data * workerData = (worker_data *) data;
-	int socket_fd = create_socket(workerData->server_addr);
-
-	printf("[%d] create socket, start listen\n", workerData->threadId);
-
 	for (;;)
 	{
-		udpTsHdr hdr;
+		struct icmp_timestamp_hdr hdr;
 		struct sockaddr_in6 remote_addr;
 		socklen_t addr_len = sizeof(remote_addr);
+		int recv = recvfrom(sock_fd, &hdr, sizeof(hdr), 0, (struct sockaddr*) &remote_addr, &addr_len);
 
-		printf("[%d] wait for packet\n", workerData->threadId);
-		int recv = recvfrom((int)socket_fd, &hdr, sizeof(hdr), 0, (struct sockaddr*) &remote_addr, &addr_len);
+		if (recv < 0)
+			continue;
+
 		int receivedTime = htonl(get_time_since_midnight_ms());
-		printf("[%d] Received: %d bytes\n", workerData->threadId, recv);
 
-		if (hdr.type != 0x5D)
+		if (hdr.type != ICMP_TIMESTAMP)
 		{
-			printf("[%d] not a timestamp request", workerData->threadId);
 			continue;
 		}
 
@@ -117,10 +100,10 @@ void * worker(void * data)
 
 		if (calculateChecksum(&hdr, sizeof(hdr)) != recvChecksum)
 		{
-			printf("[%d] wrong chksum", workerData->threadId);
 			continue;
 		}
 
+		hdr.type = ICMP_TIMESTAMPREPLY;
 		hdr.receiveTime = receivedTime;
 		hdr.transmitTime = htonl(get_time_since_midnight_ms());
 
@@ -128,9 +111,9 @@ void * worker(void * data)
 
 		int t;
 
-		if ((t = sendto(socket_fd, &hdr, sizeof(hdr), 0, (struct sockaddr*) &remote_addr, addr_len)) == -1)
+		if ((t = sendto(sock_fd, &hdr, sizeof(hdr), 0, (struct sockaddr*) &remote_addr, addr_len)) == -1)
 		{
-			printf("[%d] something wrong: %d\n",workerData->threadId, t);
+			printf("something wrong: %d\n", t);
 			continue;
 		}
 	}
@@ -138,43 +121,13 @@ void * worker(void * data)
 
 int main(int argc, char **argv)
 {
-	pthread_t listenThreads[LISTEN_THREADS];
-
-	printf("hello world\n");
 	struct sockaddr_in6 server_addr;
 	create_listen_addr(&server_addr);
 
-	for (int t = 0; t < LISTEN_THREADS; t++)
-	{
-		int ret;
-		pthread_t thread;
-		worker_data data;
+	int sock_fd = create_socket(&server_addr);
+	printf("create socket, start listen\n");
 
-		data.server_addr = &server_addr;
-		data.threadId = t;
-
-		printf("creating thhread: %d -> %d\n", data.threadId, t);
-
-		if ((ret = pthread_create(&thread, NULL, worker, (void *) &data)) != 0)
-		{
-			printf("failed to create listen thread: %d\n", ret);
-		}
-
-		listenThreads[t] = thread;
-	}
-
-	for (int t = 0; t < LISTEN_THREADS; t++)
-	{
-		int thread;
-		void *status;
-
-		printf("joining thhread: %d\n", t);
-
-		if ((thread = pthread_join(listenThreads[t], &status)) != 0)
-		{
-			printf("Error in listen thread join: %d\n", thread);
-		}
-	}
+	worker(sock_fd);
 	
 	return 0;
 }
