@@ -131,12 +131,15 @@ void worker(int sock_fd)
 			continue;
 		}
 
-		uint32_t originateTs =  (hdr.originateTime % 86400 * 1000) + (hdr.originateTimeNs / 1000000);
-		uint32_t receivedTs =  (hdr.receiveTime % 86400 * 1000) + (hdr.receiveTimeNs / 1000000);
-		uint32_t transmitTs =  (hdr.transmitTime % 86400 * 1000) + (hdr.transmitTimeNs / 1000000);
+		unsigned long originateTs =  (hdr.originateTime % 86400 * 1000) + (hdr.originateTimeNs / 1000000);
+		unsigned long receivedTs =  (hdr.receiveTime % 86400 * 1000) + (hdr.receiveTimeNs / 1000000);
+		unsigned long transmitTs =  (hdr.transmitTime % 86400 * 1000) + (hdr.transmitTimeNs / 1000000);
 
-		printf("Sender IP %s  |  Originate time: %lu  |  Receive time: %lu  |  Transmit time: %lu\n",
-				originateTs, receivedTs, transmitTs);
+		char ip[INET6_ADDRSTRLEN];
+		inet_ntop(AF_INET, &remote_addr, ip, INET6_ADDRSTRLEN);
+
+		printf("Sender IP %s  |  Originate time: %ld  |  Receive time: %ld  |  Transmit time: %ld\n",
+				ip, originateTs, receivedTs, transmitTs);
 	}
 }
 
