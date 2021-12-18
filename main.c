@@ -136,7 +136,7 @@ void worker(int sock_fd)
 		unsigned long transmitTs =  (hdr.transmitTime % 86400 * 1000) + (hdr.transmitTimeNs / 1000000);
 
 		char ip[INET6_ADDRSTRLEN];
-		inet_ntop(AF_INET, &remote_addr, ip, INET6_ADDRSTRLEN);
+		inet_ntop(AF_INET, &(remote_addr.sin6_addr), ip, INET6_ADDRSTRLEN);
 
 		printf("Sender IP %s  |  Originate time: %ld  |  Receive time: %ld  |  Transmit time: %ld\n",
 				ip, originateTs, receivedTs, transmitTs);
