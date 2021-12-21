@@ -1,11 +1,13 @@
 pipeline {
     agent {
-		label 'builder'
-        docker { image 'lochnair/alpine-sdk:latest' }
+	label 'builder'
+        docker {
+		image 'lochnair/alpine-sdk:latest'
+	}
     }
     
     stages {
-        sstage('Build') {
+        stage('Build') {
             steps {
                 sh 'gcc -static -o udp-ts-reflector main.c'
 				// sh 'strip --strip-unneeded udp-ts-reflector'
