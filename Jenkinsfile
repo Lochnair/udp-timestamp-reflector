@@ -1,8 +1,8 @@
 pipeline {
     agent {
-	label 'builder'
         docker {
 		image 'lochnair/alpine-sdk:latest'
+		label 'builder'
 	}
     }
     
