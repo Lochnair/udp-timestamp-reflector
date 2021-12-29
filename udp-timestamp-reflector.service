@@ -1,0 +1,23 @@
+[Unit]
+Description=Lochnair udp-ts-reflector Service
+
+[Service]
+ExecStart=/usr/local/bin/udp-ts-reflector
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=udp-ts-reflector
+Restart=always
+TimeoutStartSec=1min
+RestartSec=1min
+DynamicUser=yes
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectControlGroups=yes
+ProtectDevices=yes
+ProtectHome=yes
+ProtectKernelModules=yes
+ProtectKernelTunables=yes
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target
