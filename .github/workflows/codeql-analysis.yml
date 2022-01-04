@@ -59,10 +59,7 @@ jobs:
     #    uses a compiled language
 
     - run: |
-       sudo apt-get -y install meson ninja-build
-       meson setup builddir
-       cd builddir
-       meson compile
+        gcc -o udp-timestamp-reflector main.c
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v1
